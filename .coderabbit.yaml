@@ -1,0 +1,13 @@
+language: en
+
+reviews:
+  # Without this, CodeRabbit only leaves comments — it never submits a
+  # formal GitHub "Approve" or "Request changes" review. With it enabled,
+  # CodeRabbit approves once it has no unresolved issues, or requests
+  # changes if it finds problems — and that approval counts toward
+  # GitHub's "Require approvals" branch protection rule.
+  request_changes_workflow: true
+
+  auto_review:
+    enabled: true
+    drafts: false
