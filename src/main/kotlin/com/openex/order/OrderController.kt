@@ -43,8 +43,6 @@ class OrderController(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody request: OrderRequest,
     ): ResponseEntity<Any> {
-        validateOrderShape(request)
-
         val requestHash = idempotencyService.hashOf(objectMapper.writeValueAsString(request))
 
         when (val outcome = idempotencyService.check(idempotencyKey, requestHash)) {
@@ -60,6 +58,8 @@ class OrderController(
         }
 
         return try {
+            validateOrderShape(request)
+
             val result = matchingEngine.submit(
                 userId = request.userId!!,
                 symbol = request.symbol!!,
