@@ -10,7 +10,7 @@ import java.time.Instant
 @Table(name = "idempotency_keys")
 class IdempotencyKey(
     @Id
-    @Column(nullable = false, length = 255)
+    @Column(name = "`key`", nullable = false, length = 255)
     val key: String,
 
     @Column(name = "request_hash", nullable = false, length = 64)

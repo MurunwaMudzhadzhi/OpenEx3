@@ -25,11 +25,13 @@ class OrderControllerTest {
     @Autowired lateinit var objectMapper: ObjectMapper
     @Autowired lateinit var accountRepository: AccountRepository
     @Autowired lateinit var orderRepository: OrderRepository
+    @Autowired lateinit var matchingEngine: com.openex.matching.MatchingEngine
 
     private lateinit var userId: UUID
 
     @BeforeEach
     fun setUp() {
+        matchingEngine.resetForTesting()
         userId = UUID.randomUUID()
         accountRepository.save(Account(userId = userId, asset = "USD", balance = BigDecimal("100000.00000000")))
         accountRepository.save(Account(userId = userId, asset = "BTC", balance = BigDecimal("10.00000000")))

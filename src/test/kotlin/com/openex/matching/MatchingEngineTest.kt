@@ -30,6 +30,7 @@ class MatchingEngineTest {
 
     @BeforeEach
     fun setUp() {
+        matchingEngine.resetForTesting()
         buyerId = UUID.randomUUID()
         sellerId = UUID.randomUUID()
 

@@ -36,6 +36,18 @@ class MatchingEngine(
     private val symbolLocks = ConcurrentHashMap<String, Any>()
 
     /**
+     * Test-only: clears all in-memory book state. MatchingEngine is a
+     * singleton Spring bean, so its in-memory `books` map survives across
+     * test methods even though @DataJpaTest/@SpringBootTest roll back the
+     * DB after each test. Without this, a resting order created in one
+     * test can leak into a later test's book and cause spurious
+     * "resting order not found" failures. Call from @BeforeEach.
+     */
+    fun resetForTesting() {
+        books.clear()
+    }
+
+    /**
      * Submits a new order: persists it, matches it against the book, and
      * records any resulting trades through the ledger. All in one
      * transaction — if the ledger rejects a fill partway through, the
