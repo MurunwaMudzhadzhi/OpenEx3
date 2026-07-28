@@ -40,6 +40,12 @@ class MatchingEngine(
      * records any resulting trades through the ledger. All in one
      * transaction — if the ledger rejects a fill partway through, the
      * whole submission rolls back rather than leaving a half-matched order.
+     *
+     * If anything fails after the in-memory book has already been mutated
+     * (e.g. the ledger rejects a fill), the book for that symbol is evicted
+     * and will be rebuilt from the database on the next order — so the
+     * in-memory book can never end up referencing an order that isn't
+     * actually persisted. See [rebuildBook].
      */
     @Transactional
     fun submit(
@@ -66,7 +72,7 @@ class MatchingEngine(
 
         val lock = symbolLocks.computeIfAbsent(symbol) { Any() }
         val trades = synchronized(lock) {
-            val book = books.computeIfAbsent(symbol) { OrderBook(symbol) }
+            val book = books.computeIfAbsent(symbol) { rebuildBook(symbol) }
 
             val incoming = IncomingOrder(
                 orderId = order.id,
@@ -77,14 +83,43 @@ class MatchingEngine(
                 quantity = quantity,
             )
 
-            val result = book.submit(incoming)
-            applyFills(order, symbol, result.fills)
+            try {
+                val result = book.submit(incoming)
+                applyFills(order, symbol, result.fills)
+            } catch (e: Exception) {
+                // The book may now hold state that won't be reflected in the
+                // DB once this transaction rolls back (e.g. a resting order
+                // that consumed part of a counter-order that will no longer
+                // exist). Discard it — the next order for this symbol
+                // rebuilds cleanly from persisted state instead of trusting
+                // possibly-corrupted in-memory data.
+                books.remove(symbol)
+                throw e
+            }
         }
 
         finalizeStatus(order)
         orderRepository.save(order)
 
         return SubmissionResult(order = order, trades = trades)
+    }
+
+    /**
+     * Reconstructs a symbol's order book from persisted OPEN/PARTIALLY_FILLED
+     * LIMIT orders, oldest first (to preserve time priority). Called both
+     * for a symbol's first use after startup, and to self-heal after a
+     * failure that may have left the in-memory book inconsistent.
+     */
+    private fun rebuildBook(symbol: String): OrderBook {
+        val book = OrderBook(symbol)
+        orderRepository.findBySymbolAndStatusIn(
+            symbol,
+            listOf(OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED)
+        )
+            .filter { it.type == OrderType.LIMIT && it.remainingQuantity > BigDecimal.ZERO }
+            .sortedBy { it.createdAt }
+            .forEach { book.seedResting(it.id, it.userId, it.side, it.price!!, it.remainingQuantity) }
+        return book
     }
 
     /**

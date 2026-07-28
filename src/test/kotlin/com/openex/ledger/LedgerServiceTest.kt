@@ -40,7 +40,7 @@ class LedgerServiceTest {
             Account(userId = buyerId, asset = "BTC", balance = BigDecimal.ZERO)
         )
         buyerQuoteAccount = accountRepository.save(
-            Account(userId = buyerId, asset = "USD", balance = BigDecimal("10000.00000000"))
+            Account(userId = buyerId, asset = "USD", balance = BigDecimal("100000.00000000"))
         )
         sellerBaseAccount = accountRepository.save(
             Account(userId = sellerId, asset = "BTC", balance = BigDecimal("1.00000000"))
@@ -78,7 +78,7 @@ class LedgerServiceTest {
         assertEquals(0, BigDecimal("0.50000000").compareTo(updatedSellerBase.balance))
 
         val quoteAmount = quantity.multiply(price) // 30000.00000000
-        assertEquals(0, BigDecimal("10000.00000000").subtract(quoteAmount).compareTo(updatedBuyerQuote.balance))
+        assertEquals(0, BigDecimal("100000.00000000").subtract(quoteAmount).compareTo(updatedBuyerQuote.balance))
         assertEquals(0, quoteAmount.compareTo(updatedSellerQuote.balance))
 
         // Every entry for this trade nets to zero per direction pairing
@@ -119,8 +119,8 @@ class LedgerServiceTest {
     @Test
     fun `recordTrade rejects and writes nothing when buyer lacks quote funds`() {
         val tradeId = UUID.randomUUID()
-        // Buyer only has 10000 USD — price this trade above that
-        val quantity = BigDecimal("1.00000000")
+        // Buyer has 100000 USD — price this trade well above that
+        val quantity = BigDecimal("3.00000000")
         val price = BigDecimal("60000.00000000")
 
         assertThrows(InsufficientBalanceException::class.java) {
@@ -137,6 +137,6 @@ class LedgerServiceTest {
 
         assertEquals(0, ledgerEntryRepository.findByTradeId(tradeId).size)
         val unchangedBuyerQuote = accountRepository.findById(buyerQuoteAccount.id).get()
-        assertEquals(0, BigDecimal("10000.00000000").compareTo(unchangedBuyerQuote.balance))
+        assertEquals(0, BigDecimal("100000.00000000").compareTo(unchangedBuyerQuote.balance))
     }
 }

@@ -132,6 +132,25 @@ class OrderBook(val symbol: String) {
         return MatchResult(fills = fills, remainingQuantity = remaining)
     }
 
+    /**
+     * Directly places an order into the book as resting, with no matching
+     * attempted. Used only to rebuild a book from persisted DB state (e.g.
+     * after a crash, restart, or a mid-match rollback) — NOT part of normal
+     * order submission, which always goes through [submit].
+     */
+    fun seedResting(orderId: UUID, userId: UUID, side: OrderSide, price: BigDecimal, remaining: BigDecimal) {
+        val book = if (side == OrderSide.BUY) bids else asks
+        val entry = RestingOrder(
+            orderId = orderId,
+            userId = userId,
+            side = side,
+            price = price,
+            remaining = remaining,
+            sequence = sequenceCounter++,
+        )
+        book.getOrPut(price) { ArrayDeque() }.addLast(entry)
+    }
+
     /** Removes a resting order (e.g. on cancellation). Returns true if found and removed. */
     fun cancel(orderId: UUID): Boolean {
         for (book in listOf(bids, asks)) {
