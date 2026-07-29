@@ -98,6 +98,17 @@ class OrderController(
             val error = ErrorResponse("invalid_request", e.message)
             idempotencyService.complete(idempotencyKey, 400, objectMapper.writeValueAsString(error))
             ResponseEntity.badRequest().body(error)
+        } catch (e: Exception) {
+            // Catch-all: without this, any exception we didn't anticipate
+            // (e.g. an internal invariant failure inside the matching
+            // engine) leaves the idempotency key reserved with no response
+            // ever recorded. IdempotencyService.check() treats that as
+            // "still in flight" — so every future retry with the same key
+            // would re-trigger order submission instead of ever replaying,
+            // defeating the exact guarantee idempotency keys exist for.
+            val error = ErrorResponse("internal_error", "The order could not be processed.")
+            idempotencyService.complete(idempotencyKey, 500, objectMapper.writeValueAsString(error))
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error)
         }
     }
 

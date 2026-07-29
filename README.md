@@ -1,10 +1,9 @@
 # OpenEx 3.0 — Backend
 
 Kotlin + Spring Boot core: matching engine, double-entry ledger, order
-persistence. This is the Core Execution Matrix piece of OpenEx 3.0 — the
-matching engine and ledger only. The order-submission REST API,
-idempotency layer, WebSocket streaming, React UI, and Python AI service
-are not part of this package yet (see Roadmap below).
+API with idempotency handling, and CI. This is the Core Execution Matrix
+piece of OpenEx 3.0. WebSocket streaming, the React UI, and the Python AI
+service are not part of this package yet (see Roadmap below).
 
 ## Quickstart
 
@@ -96,9 +95,6 @@ HTML report lands at `build/reports/tests/test/index.html`.
   orders rather than trusting stale in-memory state. This was a real bug
   caught during manual testing — a rolled-back DB transaction had left a
   phantom resting order in memory that no longer existed in the database.
-- **No REST endpoint yet.** `MatchingEngine.submit(...)` is called
-  directly today; there's no `POST /orders` controller, request
-  validation, or `Idempotency-Key` handling yet.
 - **`ledger_entries` net-to-zero per trade** is enforced at the
   application layer (inside `LedgerService`), not as a DB constraint —
   Postgres can't easily express "sum of sibling rows = 0" in a column
@@ -112,6 +108,15 @@ HTML report lands at `build/reports/tests/test/index.html`.
   client sends in the request body — there's no token validating that the
   caller actually is that user. `SecurityConfig` is explicitly a
   temporary stand-in (see that file's comments).
+- **A genuinely concurrent duplicate request (not a sequential retry) can
+  still double-process.** If two requests with the same `Idempotency-Key`
+  arrive close enough together, the second can see the key as "reserved
+  but not yet completed" and proceed to also submit the order, rather
+  than waiting for the first to finish. Sequential retries (the common
+  case — a client resending after a timeout) are handled correctly; true
+  in-flight concurrency is not. A stricter fix (short polling for
+  completion, or rejecting the second request with a retryable status)
+  is a reasonable follow-up if this becomes a real-world concern.
 
 ## Roadmap (not yet built)
 

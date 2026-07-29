@@ -42,7 +42,13 @@ class LedgerService(
         require(quantity > BigDecimal.ZERO) { "quantity must be positive" }
         require(price > BigDecimal.ZERO) { "price must be positive" }
 
+        // quantity and price can each carry up to 8 fractional digits, so
+        // their raw product can carry up to 16 — more than the NUMERIC(28,8)
+        // columns actually store. Round explicitly here so the LedgerEntry
+        // objects returned to the caller match what Postgres persists,
+        // rather than silently drifting from the DB's own rounding.
         val quoteAmount = quantity.multiply(price)
+            .setScale(8, java.math.RoundingMode.HALF_UP)
 
         val entries = mutableListOf<LedgerEntry>()
 
