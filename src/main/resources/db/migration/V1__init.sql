@@ -22,20 +22,21 @@ CREATE TABLE accounts (
     CONSTRAINT chk_balance_non_negative CHECK (balance >= 0)
 );
 
-CREATE TYPE order_side AS ENUM ('BUY', 'SELL');
-CREATE TYPE order_type AS ENUM ('LIMIT', 'MARKET');
-CREATE TYPE order_status AS ENUM ('OPEN', 'PARTIALLY_FILLED', 'FILLED', 'CANCELLED', 'REJECTED');
-
+-- Enums are plain VARCHAR + CHECK rather than Postgres native enum types.
+-- Native enum types (CREATE TYPE ... AS ENUM) don't map cleanly onto
+-- Hibernate's H2-based test database, which breaks the test suite. VARCHAR
+-- + CHECK gives the same validation with no dialect-specific friction.
 CREATE TABLE orders (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id          UUID NOT NULL REFERENCES users(id),
     symbol           VARCHAR(20) NOT NULL,     -- e.g. 'BTC-USD'
-    side             order_side NOT NULL,
-    type             order_type NOT NULL,
+    side             VARCHAR(10) NOT NULL CHECK (side IN ('BUY', 'SELL')),
+    type             VARCHAR(10) NOT NULL CHECK (type IN ('LIMIT', 'MARKET')),
     price            NUMERIC(28, 8),           -- NULL for MARKET orders
     quantity         NUMERIC(28, 8) NOT NULL CHECK (quantity > 0),
     filled_quantity  NUMERIC(28, 8) NOT NULL DEFAULT 0,
-    status           order_status NOT NULL DEFAULT 'OPEN',
+    status           VARCHAR(20) NOT NULL DEFAULT 'OPEN'
+                     CHECK (status IN ('OPEN', 'PARTIALLY_FILLED', 'FILLED', 'CANCELLED', 'REJECTED')),
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_limit_has_price CHECK (type <> 'LIMIT' OR price IS NOT NULL),
@@ -57,13 +58,11 @@ CREATE TABLE trades (
 
 CREATE INDEX idx_trades_symbol ON trades (symbol, executed_at);
 
-CREATE TYPE ledger_direction AS ENUM ('DEBIT', 'CREDIT');
-
 CREATE TABLE ledger_entries (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id    UUID NOT NULL REFERENCES accounts(id),
     trade_id      UUID NOT NULL REFERENCES trades(id),
-    direction     ledger_direction NOT NULL,
+    direction     VARCHAR(10) NOT NULL CHECK (direction IN ('DEBIT', 'CREDIT')),
     amount        NUMERIC(28, 8) NOT NULL CHECK (amount > 0),
     balance_after NUMERIC(28, 8) NOT NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
