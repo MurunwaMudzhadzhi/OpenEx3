@@ -118,10 +118,31 @@ HTML report lands at `build/reports/tests/test/index.html`.
   completion, or rejecting the second request with a retryable status)
   is a reasonable follow-up if this becomes a real-world concern.
 
+**Week 2, Day 1 — WebSocket broadcasting**
+- STOMP-over-WebSocket endpoint at `/ws` (SockJS fallback included)
+- Every order submission publishes an internal event; a listener
+  broadcasts the updated order book (`/topic/orderbook/{symbol}`) and any
+  resulting trades (`/topic/trades/{symbol}`) to subscribed clients
+- The broadcast listener uses `AFTER_COMMIT` specifically — it only fires
+  once the database transaction has actually succeeded, so a rolled-back
+  order (e.g. rejected for insufficient balance) never gets broadcast as
+  if it happened. This mirrors the same consistency principle behind the
+  order book's self-healing rebuild.
+- REST (`POST /orders`) remains how orders are *submitted*; WebSocket is
+  purely for *watching* live state — no order logic duplicated into the
+  WebSocket layer
+- No frontend yet — this is backend-only, verified by unit/integration
+  tests on the snapshot aggregation logic. A raw WebSocket client (e.g.
+  Postman's WS tab) can already connect to `/ws` and subscribe to a
+  symbol's topics to see it work.
+
 ## Roadmap (not yet built)
 
 - **Day 5–6 remainder**: real JWT auth (replacing the dev-only
   `SecurityConfig` and the trust-the-body `userId`)
-- **Week 2**: WebSocket order book streaming + React trading UI
+- **Week 2, Days 2+**: React + Vite frontend connecting to the WebSocket
+  layer above; live order book UI; order submission form wired to the
+  existing REST API; Docker Compose updated to run frontend + backend +
+  Postgres together
 - **Week 3**: Python market simulator + Ollama/LangChain wallet
   assistant

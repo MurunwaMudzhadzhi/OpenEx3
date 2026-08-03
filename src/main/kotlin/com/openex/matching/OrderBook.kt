@@ -167,4 +167,23 @@ class OrderBook(val symbol: String) {
 
     fun bestBid(): BigDecimal? = bids.keys.firstOrNull()
     fun bestAsk(): BigDecimal? = asks.keys.firstOrNull()
+
+    /**
+     * Aggregated bid levels (price -> total resting quantity at that price),
+     * best price first, limited to [depth] levels. Used for broadcasting a
+     * book snapshot — callers outside this class never see individual
+     * resting orders, only price/quantity aggregates.
+     */
+    fun bidLevels(depth: Int = 20): List<PriceLevel> = aggregate(bids, depth)
+
+    /** Same as [bidLevels] but for the ask side. */
+    fun askLevels(depth: Int = 20): List<PriceLevel> = aggregate(asks, depth)
+
+    private fun aggregate(book: Map<BigDecimal, ArrayDeque<RestingOrder>>, depth: Int): List<PriceLevel> =
+        book.entries.take(depth).map { (price, queue) ->
+            PriceLevel(price = price, quantity = queue.fold(BigDecimal.ZERO) { acc, o -> acc.add(o.remaining) })
+        }
 }
+
+/** One aggregated price level in the book — total quantity resting at that price. */
+data class PriceLevel(val price: BigDecimal, val quantity: BigDecimal)

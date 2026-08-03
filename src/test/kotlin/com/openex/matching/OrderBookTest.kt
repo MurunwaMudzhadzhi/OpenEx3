@@ -151,4 +151,46 @@ class OrderBookTest {
         assertTrue(removed)
         assertEquals(null, book.bestBid())
     }
+
+    @Test
+    fun `bidLevels aggregates multiple orders at the same price into one level`() {
+        val book = OrderBook("BTC-USD")
+        book.submit(order(OrderSide.BUY, price = BigDecimal("100"), quantity = "1"))
+        book.submit(order(OrderSide.BUY, price = BigDecimal("100"), quantity = "2.5"))
+
+        val levels = book.bidLevels()
+
+        assertEquals(1, levels.size)
+        assertEquals(0, BigDecimal("100").compareTo(levels[0].price))
+        assertEquals(0, BigDecimal("3.5").compareTo(levels[0].quantity))
+    }
+
+    @Test
+    fun `bidLevels are sorted best price first, askLevels worst price last excluded by depth`() {
+        val book = OrderBook("BTC-USD")
+        book.submit(order(OrderSide.BUY, price = BigDecimal("99"), quantity = "1"))
+        book.submit(order(OrderSide.BUY, price = BigDecimal("101"), quantity = "1"))
+        book.submit(order(OrderSide.BUY, price = BigDecimal("100"), quantity = "1"))
+
+        val levels = book.bidLevels()
+
+        assertEquals(3, levels.size)
+        assertEquals(0, BigDecimal("101").compareTo(levels[0].price)) // best bid first
+        assertEquals(0, BigDecimal("100").compareTo(levels[1].price))
+        assertEquals(0, BigDecimal("99").compareTo(levels[2].price))
+    }
+
+    @Test
+    fun `depth limits the number of levels returned`() {
+        val book = OrderBook("BTC-USD")
+        book.submit(order(OrderSide.SELL, price = BigDecimal("100"), quantity = "1"))
+        book.submit(order(OrderSide.SELL, price = BigDecimal("101"), quantity = "1"))
+        book.submit(order(OrderSide.SELL, price = BigDecimal("102"), quantity = "1"))
+
+        val levels = book.askLevels(depth = 2)
+
+        assertEquals(2, levels.size)
+        assertEquals(0, BigDecimal("100").compareTo(levels[0].price))
+        assertEquals(0, BigDecimal("101").compareTo(levels[1].price))
+    }
 }
