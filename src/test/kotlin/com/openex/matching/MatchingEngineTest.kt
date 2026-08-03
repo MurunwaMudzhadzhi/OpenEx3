@@ -103,4 +103,23 @@ class MatchingEngineTest {
         assertEquals(0, result.trades.size)
         assertEquals(OrderStatus.CANCELLED, result.order.status)
     }
+
+    @Test
+    fun `getOrderBookSnapshot reflects a resting order`() {
+        matchingEngine.submit(
+            userId = buyerId,
+            symbol = "ETH-USD",
+            side = OrderSide.BUY,
+            type = OrderType.LIMIT,
+            price = BigDecimal("59000"),
+            quantity = BigDecimal("2"),
+        )
+
+        val snapshot = matchingEngine.getOrderBookSnapshot("ETH-USD")
+
+        assertEquals(1, snapshot.bids.size)
+        assertEquals(0, BigDecimal("59000").compareTo(snapshot.bids[0].price))
+        assertEquals(0, BigDecimal("2").compareTo(snapshot.bids[0].quantity))
+        assertEquals(0, snapshot.asks.size)
+    }
 }

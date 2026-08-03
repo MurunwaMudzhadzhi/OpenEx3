@@ -6,8 +6,10 @@ import com.openex.order.Order
 import com.openex.order.OrderRepository
 import com.openex.order.OrderStatus
 import com.openex.order.OrderType
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -20,20 +22,38 @@ data class SubmissionResult(
     val trades: List<Trade>,
 )
 
+/** Read-only snapshot of a symbol's book, safe to serialize and broadcast. */
+data class OrderBookSnapshot(
+    val symbol: String,
+    val bids: List<PriceLevel>,
+    val asks: List<PriceLevel>,
+)
+
 @Service
 class MatchingEngine(
     private val orderRepository: OrderRepository,
     private val tradeRepository: TradeRepository,
     private val accountRepository: AccountRepository,
     private val ledgerService: LedgerService,
+    private val eventPublisher: ApplicationEventPublisher,
+    transactionManager: PlatformTransactionManager,
 ) {
     // One OrderBook per symbol, created on first use.
     private val books = ConcurrentHashMap<String, OrderBook>()
 
-    // One lock object per symbol — matching for a given symbol must never
+    // One lock object per symbol  matching for a given symbol must never
     // run concurrently, since the in-memory book isn't thread-safe on its
     // own. Different symbols can match in parallel.
     private val symbolLocks = ConcurrentHashMap<String, Any>()
+
+    // Manages the transaction manually (rather than via @Transactional)
+    // so the whole DB transaction  not just the in-memory match  can
+    // run inside the symbol lock. @Transactional is proxy-based: it
+    // commits *after* the annotated method returns, which is always
+    // after any synchronized block inside that method has already
+    // released. That gap let a second order for the same symbol match
+    // against a resting order whose DB row hadn't committed yet.
+    private val transactionTemplate = TransactionTemplate(transactionManager)
 
     /**
      * Test-only: clears all in-memory book state. MatchingEngine is a
@@ -49,17 +69,23 @@ class MatchingEngine(
 
     /**
      * Submits a new order: persists it, matches it against the book, and
-     * records any resulting trades through the ledger. All in one
-     * transaction — if the ledger rejects a fill partway through, the
-     * whole submission rolls back rather than leaving a half-matched order.
+     * records any resulting trades through the ledger.
      *
-     * If anything fails after the in-memory book has already been mutated
-     * (e.g. the ledger rejects a fill), the book for that symbol is evicted
-     * and will be rebuilt from the database on the next order — so the
-     * in-memory book can never end up referencing an order that isn't
-     * actually persisted. See [rebuildBook].
+     * The symbol lock is held for the ENTIRE transaction  book
+     * resolution, the DB save, matching, applyFills, and the commit
+     * itself  not just the in-memory match. This guarantees that by the
+     * time a second order for the same symbol can acquire the lock, every
+     * DB row the first order touched is already committed and visible.
+     * Holding the lock across a DB round-trip does serialize submissions
+     * for the same symbol, but different symbols still match in parallel,
+     * and correctness here matters more than that extra latency.
+     *
+     * If the transaction fails for any reason (ledger rejection, DB
+     * error, etc.), the book for that symbol is evicted so it gets
+     * rebuilt from persisted state on the next order  the in-memory
+     * book can never end up holding a mutation from a transaction that
+     * didn't actually commit. See [rebuildBook].
      */
-    @Transactional
     fun submit(
         userId: UUID,
         symbol: String,
@@ -71,49 +97,81 @@ class MatchingEngine(
         require(type == OrderType.MARKET || price != null) { "LIMIT orders require a price" }
         require(quantity > BigDecimal.ZERO) { "quantity must be positive" }
 
-        val order = orderRepository.save(
-            Order(
-                userId = userId,
-                symbol = symbol,
-                side = side,
-                type = type,
-                price = price,
-                quantity = quantity,
-            )
-        )
-
         val lock = symbolLocks.computeIfAbsent(symbol) { Any() }
-        val trades = synchronized(lock) {
-            val book = books.computeIfAbsent(symbol) { rebuildBook(symbol) }
 
-            val incoming = IncomingOrder(
-                orderId = order.id,
-                userId = userId,
-                side = side,
-                type = type,
-                price = price,
-                quantity = quantity,
-            )
-
+        val result: SubmissionResult = synchronized(lock) {
             try {
-                val result = book.submit(incoming)
-                applyFills(order, symbol, result.fills)
+                transactionTemplate.execute<SubmissionResult> {
+                    // Resolve (and, if needed, rebuild) the book BEFORE
+                    // this order is persisted, so rebuildBook() can never
+                    // see it.
+                    val book = books.computeIfAbsent(symbol) { rebuildBook(symbol) }
+
+                    val order = orderRepository.save(
+                        Order(
+                            userId = userId,
+                            symbol = symbol,
+                            side = side,
+                            type = type,
+                            price = price,
+                            quantity = quantity,
+                        )
+                    )
+
+                    val incoming = IncomingOrder(
+                        orderId = order.id,
+                        userId = userId,
+                        side = side,
+                        type = type,
+                        price = price,
+                        quantity = quantity,
+                    )
+
+                    val matchResult = book.submit(incoming)
+                    val trades = applyFills(order, symbol, matchResult.fills)
+
+                    finalizeStatus(order)
+                    orderRepository.save(order)
+
+                    SubmissionResult(order = order, trades = trades)
+                } ?: error("transactionTemplate.execute returned null")
             } catch (e: Exception) {
-                // The book may now hold state that won't be reflected in the
-                // DB once this transaction rolls back (e.g. a resting order
-                // that consumed part of a counter-order that will no longer
-                // exist). Discard it — the next order for this symbol
-                // rebuilds cleanly from persisted state instead of trusting
+                // The book may now hold state that won't be reflected in
+                // the DB, since this transaction didn't commit (e.g. the
+                // ledger rejected a fill, or the commit itself failed).
+                // Discard it  the next order for this symbol rebuilds
+                // cleanly from persisted state instead of trusting
                 // possibly-corrupted in-memory data.
                 books.remove(symbol)
                 throw e
             }
         }
 
-        finalizeStatus(order)
-        orderRepository.save(order)
+        // Fired for every submission, matched or not  the book state
+        // changed either way (a new resting order, a filled counter-order,
+        // or both). Safe to fire after the synchronized block: the
+        // transaction has already committed by this point.
+        eventPublisher.publishEvent(OrderProcessedEvent(symbol = symbol, trades = result.trades))
 
-        return SubmissionResult(order = order, trades = trades)
+        return result
+    }
+
+    /**
+     * Thread-safe read of the current aggregated book state for [symbol].
+     * Used by the WebSocket broadcaster to build the snapshot pushed to
+     * clients  never exposes individual resting orders, only price/
+     * quantity aggregates.
+     */
+    fun getOrderBookSnapshot(symbol: String, depth: Int = 20): OrderBookSnapshot {
+        val lock = symbolLocks.computeIfAbsent(symbol) { Any() }
+        return synchronized(lock) {
+            val book = books.computeIfAbsent(symbol) { rebuildBook(symbol) }
+            OrderBookSnapshot(
+                symbol = symbol,
+                bids = book.bidLevels(depth),
+                asks = book.askLevels(depth),
+            )
+        }
     }
 
     /**
