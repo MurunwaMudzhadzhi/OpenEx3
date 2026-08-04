@@ -10,21 +10,29 @@ import org.springframework.transaction.event.TransactionalEventListener
 /**
  * Bridges MatchingEngine's internal events to WebSocket broadcasts.
  *
- * Uses AFTER_COMMIT specifically: OrderProcessedEvent is published from
- * inside MatchingEngine.submit()'s @Transactional method, before Spring
- * knows whether that transaction will actually succeed. If we broadcast
- * immediately on the event (not waiting for commit), a rolled-back
- * transaction would still have pushed phantom state to every connected
- * client — the same class of consistency bug the order book self-healing
- * fix addressed for the in-memory book itself. AFTER_COMMIT guarantees we
- * only ever broadcast state that's genuinely persisted.
+ * MatchingEngine.submit() manages its own transaction manually (via
+ * TransactionTemplate, not @Transactional) so the symbol lock can span the
+ * entire DB transaction — see the comment on MatchingEngine.transactionTemplate
+ * for why. That means OrderProcessedEvent is published AFTER the
+ * transaction has already committed and closed, not from within an active
+ * one.
+ *
+ * fallbackExecution = true is required because of that: by default,
+ * @TransactionalEventListener silently drops an event if there's no active
+ * transaction synchronization at publish time. Here there never will be —
+ * the commit has already happened by the time we publish — so
+ * fallbackExecution just tells Spring "run it immediately, synchronously,
+ * right now" instead of waiting for a commit hook that will never fire.
+ * The AFTER_COMMIT phase is still meaningful documentation of intent (only
+ * broadcast state that's genuinely persisted), even though in practice
+ * every invocation now takes the fallback path.
  */
 @Component
 class OrderBookBroadcaster(
     private val matchingEngine: MatchingEngine,
     private val messagingTemplate: SimpMessagingTemplate,
 ) {
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     fun onOrderProcessed(event: OrderProcessedEvent) {
         val snapshot = matchingEngine.getOrderBookSnapshot(event.symbol)
         messagingTemplate.convertAndSend("/topic/orderbook/${event.symbol}", snapshot)
