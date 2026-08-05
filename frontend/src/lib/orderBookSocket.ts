@@ -34,25 +34,43 @@ export interface OpenExSocketHandlers {
  * leaking the connection.
  */
 export function connectToOrderBook(symbol: string, handlers: OpenExSocketHandlers): () => void {
+  // Guards against React StrictMode's extra mount/unmount/remount cycle in
+  // development: without this, a stale callback from the first (disposed)
+  // client can fire after a second client has already connected, incorrectly
+  // flipping connection state back to false.
+  let disposed = false;
+
   const client = new Client({
     webSocketFactory: () => new SockJS("/ws") as unknown as WebSocket,
     reconnectDelay: 3000, // auto-reconnect if the connection drops
     onConnect: () => {
+      if (disposed) return;
       handlers.onConnectionChange(true);
 
       client.subscribe(`/topic/orderbook/${symbol}`, (message: IMessage) => {
+        if (disposed) return;
         handlers.onOrderBook(JSON.parse(message.body) as OrderBookSnapshot);
       });
 
       client.subscribe(`/topic/trades/${symbol}`, (message: IMessage) => {
+        if (disposed) return;
         handlers.onTrade(JSON.parse(message.body) as TradeBroadcast);
       });
     },
-    onDisconnect: () => handlers.onConnectionChange(false),
-    onWebSocketClose: () => handlers.onConnectionChange(false),
+    onDisconnect: () => {
+      if (disposed) return;
+      handlers.onConnectionChange(false);
+    },
+    onWebSocketClose: () => {
+      if (disposed) return;
+      handlers.onConnectionChange(false);
+    },
   });
 
   client.activate();
 
-  return () => client.deactivate();
+  return () => {
+    disposed = true;
+    client.deactivate();
+  };
 }
