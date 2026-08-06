@@ -1,0 +1,94 @@
+:root {
+  --bg-void: #0a0d0a;
+  --bg-panel: #0f1410;
+  --bg-panel-raised: #141a15;
+  --line-dim: #24302688;
+  --line-bright: #3a4c3a;
+
+  --phosphor: #4ade9a;
+  --phosphor-dim: #2f8f66;
+  --amber: #e0a340;
+  --amber-dim: #9c7130;
+  --danger: #e0603f;
+
+  --text-primary: #d8ead8;
+  --text-secondary: #7a9484;
+  --text-faint: #445048;
+
+  --font-mono: "IBM Plex Mono", "SF Mono", "Consolas", monospace;
+  --font-label: "IBM Plex Mono", monospace;
+
+  --clip-panel: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  --clip-panel-sm: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-void);
+  background-image:
+    linear-gradient(var(--line-dim) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-dim) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scanline texture — the one signature move, kept subtle */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.018) 0px,
+    rgba(255, 255, 255, 0.018) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+.panel {
+  background: var(--bg-panel);
+  clip-path: var(--clip-panel);
+  border: 1px solid var(--line-bright);
+  padding: 16px 18px;
+}
+
+.panel-sm {
+  clip-path: var(--clip-panel-sm);
+}
+
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--phosphor-dim);
+  color: var(--bg-void);
+}
+
+/* Respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
