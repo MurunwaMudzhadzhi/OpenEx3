@@ -3,29 +3,37 @@ package com.openex.auth
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
 /**
- * TEMPORARY dev-only security config.
+ * Dev-stage security config.
  *
- * Spring Security is on the classpath (needed for JWT auth later), but with
- * no config it locks every endpoint behind an auto-generated password that
- * rotates on every restart — annoying while testing the ledger/matching
- * engine with curl/Postman.
- *
- * This permits everything for now. Replace with real JWT auth
- * (validating tokens, securing /orders, /accounts, etc.) once the `auth`
- * package is built out later in Week 1.
+ * Real register/login + JWT issuance now exist (/auth/register,
+ * /auth/login), and JwtAuthenticationFilter will populate the security
+ * context for any request bearing a valid token. Endpoints are still
+ * permitAll for now — /orders still trusts the userId in its request body
+ * rather than requiring the JWT — since tightening that also means updating
+ * the frontend to attach the token and the existing OrderControllerTest
+ * suite to send one. That's the natural next step once the frontend has a
+ * login flow wired up end-to-end.
  */
 @Configuration
-class SecurityConfig {
+class SecurityConfig(
+    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+) {
+
+    @Bean
+    fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
 
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
             .authorizeHttpRequests { it.anyRequest().permitAll() }
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }
