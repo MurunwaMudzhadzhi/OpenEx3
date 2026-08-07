@@ -1,4 +1,4 @@
-spring:
+﻿spring:
   datasource:
     url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -12,3 +12,10 @@ spring:
 
   flyway:
     enabled: false
+
+openex:
+  jwt:
+    # Fixed test-only secret. Real, non-placeholder value so JwtService's
+    # startup check (see JwtService.kt) doesn't fail the test context.
+    secret: test-only-secret-b4e7f102c8a93d6f1085e2c7a4b9d0e3
+    expiration-seconds: 3600
