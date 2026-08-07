@@ -1,4 +1,4 @@
-package com.openex.auth
+﻿package com.openex.auth
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -11,14 +11,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Dev-stage security config.
  *
- * Real register/login + JWT issuance now exist (/auth/register,
- * /auth/login), and JwtAuthenticationFilter will populate the security
- * context for any request bearing a valid token. Endpoints are still
- * permitAll for now — /orders still trusts the userId in its request body
- * rather than requiring the JWT — since tightening that also means updating
- * the frontend to attach the token and the existing OrderControllerTest
- * suite to send one. That's the natural next step once the frontend has a
- * login flow wired up end-to-end.
+ * Register/login (/auth/register, /auth/login) stay permitAll - you need
+ * to reach them before you have a token. WebSocket handshakes under /ws
+ * also stay permitAll for now; the order book/trade feed are read-only
+ * public market data, so authenticating that connection isn't needed yet.
+ * /orders now requires a valid JWT (Day 4) - the userId comes from the
+ * authenticated principal, not the request body, closing the trust gap
+ * noted here previously.
  */
 @Configuration
 class SecurityConfig(
@@ -32,7 +31,10 @@ class SecurityConfig(
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
-            .authorizeHttpRequests { it.anyRequest().permitAll() }
+            .authorizeHttpRequests {
+                it.requestMatchers("/orders").authenticated()
+                    .anyRequest().permitAll()
+            }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
