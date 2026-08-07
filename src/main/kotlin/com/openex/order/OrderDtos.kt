@@ -8,9 +8,6 @@ import java.util.UUID
 
 data class OrderRequest(
     @field:NotNull
-    val userId: UUID?,
-
-    @field:NotNull
     val symbol: String?,
 
     @field:NotNull

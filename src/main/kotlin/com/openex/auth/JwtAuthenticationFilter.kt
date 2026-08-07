@@ -12,10 +12,10 @@ import org.springframework.web.filter.OncePerRequestFilter
  * Reads `Authorization: Bearer <token>`, and if it's a valid OpenEx JWT,
  * populates the SecurityContext with the token's userId as the principal.
  *
- * Endpoints aren't required to be authenticated yet (SecurityConfig still
- * permits all) — this filter just makes an authenticated principal
- * available to any controller that wants it, ahead of tightening
- * `/orders` and friends to require it.
+ * SecurityConfig requires authentication for /orders, so this filter is
+ * what makes that check pass — a missing or invalid token leaves the
+ * SecurityContext unauthenticated, and /orders rejects the request before
+ * OrderController ever runs.
  */
 @Component
 class JwtAuthenticationFilter(

@@ -7,15 +7,23 @@ import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.bind.MethodArgumentNotValidException
+import java.util.UUID
 
 /**
  * Order submission API.
+ *
+ * Authentication: every request must carry a valid `Authorization: Bearer`
+ * JWT (enforced by SecurityConfig). The userId comes from that token's
+ * principal, not from the request body — a client can only ever place
+ * orders as the account it's logged in as, and can't forge a different
+ * userId by editing the request JSON.
  *
  * Idempotency: every request must include an `Idempotency-Key` header. The
  * key + a hash of the (validated, parsed) request body are checked against
@@ -43,7 +51,12 @@ class OrderController(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody request: OrderRequest,
     ): ResponseEntity<Any> {
-        val requestHash = idempotencyService.hashOf(objectMapper.writeValueAsString(request))
+        // SecurityConfig requires authentication for this endpoint, so the
+        // principal is always present here — JwtAuthenticationFilter stores
+        // it as a UUID.
+        val userId = SecurityContextHolder.getContext().authentication.principal as UUID
+
+        val requestHash = idempotencyService.hashOf(userId.toString() + objectMapper.writeValueAsString(request))
 
         when (val outcome = idempotencyService.check(idempotencyKey, requestHash)) {
             is IdempotencyOutcome.Replay -> {
@@ -61,7 +74,7 @@ class OrderController(
             validateOrderShape(request)
 
             val result = matchingEngine.submit(
-                userId = request.userId!!,
+                userId = userId,
                 symbol = request.symbol!!,
                 side = request.side!!,
                 type = request.type!!,

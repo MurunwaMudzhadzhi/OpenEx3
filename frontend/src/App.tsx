@@ -9,6 +9,7 @@ import Header from "./components/Header";
 import OrderBookPanel from "./components/OrderBookPanel";
 import TradeFeedPanel from "./components/TradeFeedPanel";
 import AuthPanel from "./components/AuthPanel";
+import OrderFormPanel from "./components/OrderFormPanel";
 
 const SYMBOL = "BTC-USD";
 const MAX_LOG_ENTRIES = 20;
@@ -64,6 +65,7 @@ export default function App() {
       >
         <OrderBookPanel symbol={SYMBOL} snapshot={snapshot} />
         <TradeFeedPanel trades={tradeLog} />
+        <OrderFormPanel symbol={SYMBOL} token={session.token} />
       </main>
     </div>
   );
