@@ -1,4 +1,4 @@
-services:
+﻿services:
   postgres:
     image: postgres:16-alpine
     container_name: openex-postgres
@@ -31,6 +31,9 @@ services:
       DB_USER: openex
       DB_PASSWORD: openex
       SERVER_PORT: 8080
+      # Local-dev-only secret - real deployments must override this via a
+      # proper secret manager / CI variable, never commit a production value.
+      JWT_SECRET: local-dev-secret-a8f3c91e0b7d4f2896c1e5a7d3b8f0c2
     ports:
       - "8080:8080"
     healthcheck:

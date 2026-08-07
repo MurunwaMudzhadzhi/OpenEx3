@@ -1,4 +1,4 @@
-spring:
+﻿spring:
   application:
     name: openex3-backend
 
@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      # never let Hibernate auto-manage schema — Flyway owns the schema
+      # never let Hibernate auto-manage schema - Flyway owns the schema
       ddl-auto: validate
     show-sql: false
     properties:
@@ -24,6 +24,11 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+
+openex:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-before-shipping-anywhere-real}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
 
 logging:
   level:
