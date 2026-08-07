@@ -1,4 +1,4 @@
-package com.openex.auth
+﻿package com.openex.auth
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -11,13 +11,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Dev-stage security config.
  *
- * Register/login (/auth/register, /auth/login) stay permitAll — you need
- * to reach them before you have a token. WebSocket handshakes
- * (/ws/**) also stay permitAll for now; the order book/trade feed are
- * read-only public market data, so authenticating that connection isn't
- * needed yet. /orders now requires a valid JWT (Day 4) — the userId comes
- * from the authenticated principal, not the request body, closing the
- * trust gap noted here previously.
+ * Register/login (/auth/register, /auth/login) stay permitAll - you need
+ * to reach them before you have a token. WebSocket handshakes under /ws
+ * also stay permitAll for now; the order book/trade feed are read-only
+ * public market data, so authenticating that connection isn't needed yet.
+ * /orders now requires a valid JWT (Day 4) - the userId comes from the
+ * authenticated principal, not the request body, closing the trust gap
+ * noted here previously.
  */
 @Configuration
 class SecurityConfig(
