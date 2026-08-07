@@ -1,9 +1,10 @@
-package com.openex.auth
+﻿package com.openex.auth
 
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.security.MessageDigest
 import java.time.Instant
 import java.util.Date
 import java.util.UUID
@@ -13,7 +14,7 @@ import javax.crypto.SecretKey
  * Issues and validates JWTs for the auth flow.
  *
  * The secret is read from JWT_SECRET (set it in docker-compose / your env for
- * anything beyond local dev — the fallback below is only safe because it's
+ * anything beyond local dev  the fallback below is only safe because it's
  * obviously a placeholder, not because it's actually secret).
  */
 @Component
@@ -23,7 +24,14 @@ class JwtService(
     @Value("\${openex.jwt.expiration-seconds:86400}")
     val expirationSeconds: Long,
 ) {
-    private val key: SecretKey = Keys.hmacShaKeyFor(secret.toByteArray().copyOf(32))
+    // SHA-256 the configured secret into a uniform 32-byte key rather than
+    // truncating/padding it directly. Byte-level truncation silently drops
+    // half the entropy of a long secret, and padding a short one with zero
+    // bytes is a predictable, weak key  hashing avoids both failure modes
+    // regardless of the input secret's length.
+    private val key: SecretKey = Keys.hmacShaKeyFor(
+        MessageDigest.getInstance("SHA-256").digest(secret.toByteArray())
+    )
 
     fun issueToken(userId: UUID, email: String): String {
         val now = Instant.now()
