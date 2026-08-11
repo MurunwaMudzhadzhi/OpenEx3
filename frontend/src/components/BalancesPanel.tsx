@@ -13,6 +13,7 @@ export default function BalancesPanel({ token, refreshSignal }: BalancesPanelPro
 
   useEffect(() => {
     let cancelled = false;
+    setError(null);
 
     fetchMyBalances(token)
       .then((result) => {

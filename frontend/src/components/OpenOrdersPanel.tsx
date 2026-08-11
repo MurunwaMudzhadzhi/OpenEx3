@@ -13,6 +13,7 @@ export default function OpenOrdersPanel({ token, refreshSignal }: OpenOrdersPane
 
   useEffect(() => {
     let cancelled = false;
+    setError(null);
 
     fetchMyOpenOrders(token)
       .then((result) => {

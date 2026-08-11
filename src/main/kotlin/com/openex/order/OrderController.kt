@@ -139,9 +139,11 @@ class OrderController(
     fun listMyOpenOrders(): List<OrderResponse> {
         val userId = SecurityContextHolder.getContext().authentication.principal as UUID
 
-        return orderRepository.findByUserId(userId)
-            .filter { it.status == OrderStatus.OPEN || it.status == OrderStatus.PARTIALLY_FILLED }
-            .sortedByDescending { it.createdAt }
+        return orderRepository
+            .findByUserIdAndStatusInOrderByCreatedAtDesc(
+                userId,
+                listOf(OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED),
+            )
             .map { order ->
                 OrderResponse(
                     orderId = order.id,
