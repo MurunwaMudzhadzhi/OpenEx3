@@ -5,6 +5,7 @@ import java.util.UUID
 
 interface AccountRepository : JpaRepository<Account, UUID> {
     fun findByUserIdAndAsset(userId: UUID, asset: String): Account?
+    fun findByUserId(userId: UUID): List<Account>
 }
 
 interface LedgerEntryRepository : JpaRepository<LedgerEntry, UUID> {

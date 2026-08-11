@@ -10,6 +10,8 @@ import OrderBookPanel from "./components/OrderBookPanel";
 import TradeFeedPanel from "./components/TradeFeedPanel";
 import AuthPanel from "./components/AuthPanel";
 import OrderFormPanel from "./components/OrderFormPanel";
+import BalancesPanel from "./components/BalancesPanel";
+import OpenOrdersPanel from "./components/OpenOrdersPanel";
 
 const SYMBOL = "BTC-USD";
 const MAX_LOG_ENTRIES = 20;
@@ -19,6 +21,7 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [snapshot, setSnapshot] = useState<OrderBookSnapshot | null>(null);
   const [tradeLog, setTradeLog] = useState<TradeBroadcast[]>([]);
+  const [refreshSignal, setRefreshSignal] = useState(0);
 
   useEffect(() => {
     if (!session) return;
@@ -65,7 +68,13 @@ export default function App() {
       >
         <OrderBookPanel symbol={SYMBOL} snapshot={snapshot} />
         <TradeFeedPanel trades={tradeLog} />
-        <OrderFormPanel symbol={SYMBOL} token={session.token} />
+        <OrderFormPanel
+          symbol={SYMBOL}
+          token={session.token}
+          onSubmitted={() => setRefreshSignal((n) => n + 1)}
+        />
+        <BalancesPanel token={session.token} refreshSignal={refreshSignal} />
+        <OpenOrdersPanel token={session.token} refreshSignal={refreshSignal} />
       </main>
     </div>
   );

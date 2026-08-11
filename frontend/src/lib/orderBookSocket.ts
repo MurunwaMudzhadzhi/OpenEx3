@@ -27,6 +27,20 @@ export interface OpenExSocketHandlers {
 }
 
 /**
+ * One-shot fetch of the current order book. Called on every connect
+ * (including reconnects) — broadcasts only carry state changes going
+ * forward, so without this a client would see an empty/stale book until
+ * the next trade happens anywhere in the market.
+ */
+async function fetchOrderBookSnapshot(symbol: string): Promise<OrderBookSnapshot> {
+  const res = await fetch(`/orderbook/${symbol}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch order book snapshot for ${symbol}`);
+  }
+  return res.json() as Promise<OrderBookSnapshot>;
+}
+
+/**
  * Connects to the backend's STOMP-over-SockJS endpoint and subscribes to
  * a single symbol's order book + trade topics.
  *
@@ -46,6 +60,17 @@ export function connectToOrderBook(symbol: string, handlers: OpenExSocketHandler
     onConnect: () => {
       if (disposed) return;
       handlers.onConnectionChange(true);
+
+      // Fetch current state immediately — see fetchOrderBookSnapshot's doc
+      // comment. This runs on the initial connect and every reconnect.
+      fetchOrderBookSnapshot(symbol)
+        .then((snapshot) => {
+          if (!disposed) handlers.onOrderBook(snapshot);
+        })
+        .catch(() => {
+          // Non-fatal — the next broadcast will still arrive and update
+          // the UI; this just means a brief stale/empty view until then.
+        });
 
       client.subscribe(`/topic/orderbook/${symbol}`, (message: IMessage) => {
         if (disposed) return;

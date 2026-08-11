@@ -9,6 +9,8 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
@@ -44,6 +46,7 @@ class OrderController(
     private val matchingEngine: MatchingEngine,
     private val idempotencyService: IdempotencyService,
     private val objectMapper: ObjectMapper,
+    private val orderRepository: OrderRepository,
 ) {
 
     @PostMapping("/orders")
@@ -124,6 +127,47 @@ class OrderController(
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error)
         }
     }
+
+    /**
+     * Returns the logged-in user's own OPEN/PARTIALLY_FILLED orders. Used by
+     * the frontend on load/reconnect so a client isn't stuck showing "no
+     * open orders" just because it wasn't connected when they were placed —
+     * WebSocket broadcasts only carry state changes going forward, not
+     * history.
+     */
+    @GetMapping("/orders")
+    fun listMyOpenOrders(): List<OrderResponse> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as UUID
+
+        return orderRepository.findByUserId(userId)
+            .filter { it.status == OrderStatus.OPEN || it.status == OrderStatus.PARTIALLY_FILLED }
+            .sortedByDescending { it.createdAt }
+            .map { order ->
+                OrderResponse(
+                    orderId = order.id,
+                    symbol = order.symbol,
+                    side = order.side,
+                    type = order.type,
+                    price = order.price,
+                    quantity = order.quantity,
+                    filledQuantity = order.filledQuantity,
+                    status = order.status,
+                    trades = emptyList(),
+                )
+            }
+    }
+
+    /**
+     * On-demand order book snapshot for a symbol. WebSocket broadcasts only
+     * fire when a new order is processed, so a client that just connected
+     * (or reconnected after a drop) would otherwise see an empty/stale book
+     * until the next trade happens anywhere in the market. The frontend
+     * calls this once right after the socket connects to close that gap,
+     * then relies on broadcasts for everything after.
+     */
+    @GetMapping("/orderbook/{symbol}")
+    fun getOrderBookSnapshot(@PathVariable symbol: String) =
+        matchingEngine.getOrderBookSnapshot(symbol)
 
     private fun validateOrderShape(request: OrderRequest) {
         when (request.type) {
