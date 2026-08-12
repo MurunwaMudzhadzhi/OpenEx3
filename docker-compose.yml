@@ -48,10 +48,9 @@ services:
     volumes:
       - openex_ollama_data:/root/.ollama
     healthcheck:
-      # Checks the daemon itself is responding — deliberately NOT checking
-      # that a model is pulled, since that's a separate manual step (see
-      # ai-agent/README.md) and shouldn't block this container from
-      # reporting healthy.
+      # Checks that the Ollama daemon is responding.
+      # The model is pulled separately and does not determine
+      # whether the container itself is healthy.
       test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
@@ -72,13 +71,15 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      # /ready (not /health) — returns a real failure status until Ollama
-      # is reachable and the model is pulled, so Docker doesn't report this
-      # container healthy prematurely. urlopen raises on the 503 /ready
-      # returns while not ready, which is exactly what we want here: a
-      # non-zero exit from this command until the service is actually
-      # ready to serve requests.
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      # /ready returns failure until Ollama is reachable and the model
+      # is available.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
