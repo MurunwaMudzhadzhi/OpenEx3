@@ -34,10 +34,10 @@ async def check_ollama() -> OllamaStatus:
         )
 
     models = [m.get("name", "") for m in response.json().get("models", [])]
-    # Ollama tags include a version suffix (e.g. "llama3.2:1b") — match on
-    # the configured name as a prefix so "llama3.2:1b" still matches even
-    # if Ollama reports a fuller tag internally.
-    model_available = any(m.startswith(settings.ollama_model) for m in models)
+    # Exact match — Ollama tags identify distinct models (e.g. "llama3.2:1b"
+    # and "llama3.2:10b" are different models, not versions of each other),
+    # so a prefix match would incorrectly treat one as satisfying the other.
+    model_available = settings.ollama_model in models
 
     detail = None if model_available else (
         f"Ollama is reachable, but model '{settings.ollama_model}' isn't pulled yet. "

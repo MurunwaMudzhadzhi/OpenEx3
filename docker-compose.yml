@@ -43,10 +43,8 @@ services:
       retries: 5
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5.4
     container_name: openex-ollama
-    ports:
-      - "11434:11434"
     volumes:
       - openex_ollama_data:/root/.ollama
     healthcheck:
@@ -74,7 +72,13 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      # /ready (not /health) — returns a real failure status until Ollama
+      # is reachable and the model is pulled, so Docker doesn't report this
+      # container healthy prematurely. urlopen raises on the 503 /ready
+      # returns while not ready, which is exactly what we want here: a
+      # non-zero exit from this command until the service is actually
+      # ready to serve requests.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
       interval: 10s
       timeout: 5s
       retries: 5

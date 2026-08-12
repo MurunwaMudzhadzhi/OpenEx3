@@ -8,6 +8,7 @@ balances, answering questions) comes in a later day, built on top of this
 scaffold rather than replacing it.
 """
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.ollama_status import check_ollama
@@ -15,23 +16,10 @@ from app.ollama_status import check_ollama
 app = FastAPI(title="OpenEx AI Agent", version="0.1.0")
 
 
-@app.get("/health")
-async def health():
-    """
-    Liveness/readiness check.
-
-    Returns 200 with status details either way — "degraded" isn't an error
-    response, it's a valid state to report (e.g. Ollama still warming up,
-    or the model hasn't been pulled yet). Docker's healthcheck can key off
-    the JSON body's "status" field, or just the 200 itself for basic
-    liveness, depending on how strict we want startup gating to be.
-    """
-    ollama = await check_ollama()
-
-    status = "ok" if (ollama.reachable and ollama.model_available) else "degraded"
-
-    return {
-        "status": status,
+def _status_body(ollama):
+    ready = ollama.reachable and ollama.model_available
+    return ready, {
+        "status": "ok" if ready else "degraded",
         "service": "openex-ai-agent",
         "ollama": {
             "reachable": ollama.reachable,
@@ -40,6 +28,33 @@ async def health():
             "detail": ollama.detail,
         },
     }
+
+
+@app.get("/health")
+async def health():
+    """
+    Liveness check. Always returns 200 if the process itself is up — this
+    answers "is the service running", not "is it ready to serve traffic".
+    Use /ready for the latter; Docker's healthcheck should call /ready, not
+    this endpoint, or it will report the container healthy before Ollama
+    and the model are actually available.
+    """
+    _, body = _status_body(await check_ollama())
+    return body
+
+
+@app.get("/ready")
+async def ready():
+    """
+    Readiness check. Returns 503 (not 200) unless Ollama is reachable AND
+    the configured model is pulled — this is what Docker's healthcheck
+    should call, so the container isn't reported healthy while dependent
+    services are still warming up or unconfigured.
+    """
+    is_ready, body = _status_body(await check_ollama())
+    if is_ready:
+        return body
+    return JSONResponse(status_code=503, content=body)
 
 
 @app.get("/")

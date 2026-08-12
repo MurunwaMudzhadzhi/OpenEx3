@@ -1,14 +1,15 @@
 """
-Day 1 tests: just confirm the service boots and the health endpoint reports
-the expected shape. Ollama connectivity itself isn't mocked/asserted here —
-that's an integration concern (does the real Ollama container + model
-exist), not something worth mocking out at this stage. A later day can add
-a mocked check_ollama() test once there's actual agent logic depending on
-its result.
+Tests for /, /health, and /ready. check_ollama is mocked throughout so these
+are true unit tests — they don't depend on a real Ollama instance being
+reachable, and they can deterministically exercise both the "ready" and
+"not ready" paths.
 """
+from unittest.mock import AsyncMock, patch
+
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.ollama_status import OllamaStatus
 
 client = TestClient(app)
 
@@ -20,12 +21,42 @@ def test_root_returns_service_info():
     assert body["service"] == "OpenEx AI Agent"
 
 
-def test_health_returns_expected_shape():
+@patch("app.main.check_ollama", new_callable=AsyncMock)
+def test_health_returns_ok_when_ollama_ready(mock_check):
+    mock_check.return_value = OllamaStatus(reachable=True, model_available=True)
+
     response = client.get("/health")
     assert response.status_code == 200
     body = response.json()
-
-    assert body["status"] in ("ok", "degraded")
+    assert body["status"] == "ok"
     assert body["service"] == "openex-ai-agent"
-    assert "reachable" in body["ollama"]
-    assert "model_available" in body["ollama"]
+    assert body["ollama"]["reachable"] is True
+    assert body["ollama"]["model_available"] is True
+
+
+@patch("app.main.check_ollama", new_callable=AsyncMock)
+def test_health_returns_degraded_but_still_200_when_ollama_not_ready(mock_check):
+    mock_check.return_value = OllamaStatus(reachable=False, model_available=False, detail="unreachable")
+
+    response = client.get("/health")
+    assert response.status_code == 200  # liveness — always 200 while the process itself is up
+    body = response.json()
+    assert body["status"] == "degraded"
+
+
+@patch("app.main.check_ollama", new_callable=AsyncMock)
+def test_ready_returns_200_when_ollama_ready(mock_check):
+    mock_check.return_value = OllamaStatus(reachable=True, model_available=True)
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+@patch("app.main.check_ollama", new_callable=AsyncMock)
+def test_ready_returns_503_when_ollama_not_ready(mock_check):
+    mock_check.return_value = OllamaStatus(reachable=True, model_available=False, detail="model not pulled")
+
+    response = client.get("/ready")
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
