@@ -4,9 +4,10 @@ import { submitOrder, type OrderSide, type OrderType } from "../lib/orderApi";
 interface OrderFormPanelProps {
   symbol: string;
   token: string;
+  onSubmitted?: () => void;
 }
 
-export default function OrderFormPanel({ symbol, token }: OrderFormPanelProps) {
+export default function OrderFormPanel({ symbol, token, onSubmitted }: OrderFormPanelProps) {
   const [side, setSide] = useState<OrderSide>("BUY");
   const [type, setType] = useState<OrderType>("LIMIT");
   const [price, setPrice] = useState("");
@@ -33,6 +34,7 @@ export default function OrderFormPanel({ symbol, token }: OrderFormPanelProps) {
       setLastFilled(`${result.status} — filled ${result.filledQuantity} / ${result.quantity}`);
       setQuantity("");
       if (type === "LIMIT") setPrice("");
+      onSubmitted?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Order submission failed");
     } finally {

@@ -1,4 +1,4 @@
-﻿package com.openex.auth
+package com.openex.auth
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -11,13 +11,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Dev-stage security config.
  *
- * Register/login (/auth/register, /auth/login) stay permitAll - you need
+ * Register/login (/auth/register, /auth/login) stay permitAll — you need
  * to reach them before you have a token. WebSocket handshakes under /ws
- * also stay permitAll for now; the order book/trade feed are read-only
- * public market data, so authenticating that connection isn't needed yet.
- * /orders now requires a valid JWT (Day 4) - the userId comes from the
- * authenticated principal, not the request body, closing the trust gap
- * noted here previously.
+ * also stay permitAll for now; the order book/trade feed (including the
+ * on-demand /orderbook/{symbol} snapshot, Day 5) are read-only public
+ * market data, so authenticating that connection isn't needed yet.
+ * /orders and /accounts require a valid JWT — the userId comes from the
+ * authenticated principal, not the request body/params, so a client can
+ * only ever act as or view the account it's logged in as.
  */
 @Configuration
 class SecurityConfig(
@@ -32,7 +33,7 @@ class SecurityConfig(
         http
             .csrf { it.disable() }
             .authorizeHttpRequests {
-                it.requestMatchers("/orders").authenticated()
+                it.requestMatchers("/orders", "/accounts").authenticated()
                     .anyRequest().permitAll()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
