@@ -17,3 +17,14 @@ HELP.md
 *.log
 
 .env
+
+# Python (ai-agent)
+ai-agent/.venv/
+ai-agent/__pycache__/
+ai-agent/**/__pycache__/
+ai-agent/.pytest_cache/
+*.pyc
+
+# Node (frontend)
+frontend/node_modules/
+frontend/dist/
