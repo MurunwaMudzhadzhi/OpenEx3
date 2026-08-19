@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   pull_request:
@@ -19,16 +19,14 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      # No Gradle wrapper is committed to this repo yet, so we use
-      # gradle/actions/setup-gradle to install Gradle 8.9 directly. It also
-      # handles dependency caching between runs automatically.
+      # Uses the committed Gradle wrapper (gradlew) so CI and local builds
+      # always run the exact same Gradle version - no separate version pin
+      # to keep in sync. setup-gradle still handles dependency caching.
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.9"
 
       - name: Run tests
-        run: gradle test --no-daemon
+        run: ./gradlew test --no-daemon
 
       - name: Upload test report
         if: always()
@@ -36,3 +34,4 @@ jobs:
         with:
           name: test-report
           path: build/reports/tests/test/
+
