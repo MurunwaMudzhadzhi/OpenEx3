@@ -2,12 +2,13 @@
 OpenEx AI agent service.
 
 Day 1: FastAPI scaffold with health/readiness checks against Ollama.
-Day 2: adds POST /chat - a LangChain ChatOllama call with a financial
-persona system prompt (see app/agent.py). No tool calling yet; the agent
-can't read real wallet balances or place orders - that's Day 3, built on
-top of this rather than replacing it.
+Day 2: POST /chat - LangChain ChatOllama call with a financial persona
+system prompt (see app/agent.py).
+Day 3: /chat now forwards the caller's Authorization header through, so
+the agent can use the wallet-balance tool (also in app/agent.py) to answer
+real balance questions via the Kotlin backend's GET /accounts endpoint.
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -15,7 +16,7 @@ from app.agent import get_chat_response
 from app.config import settings
 from app.ollama_status import check_ollama
 
-app = FastAPI(title="OpenEx AI Agent", version="0.2.0")
+app = FastAPI(title="OpenEx AI Agent", version="0.3.0")
 
 
 def _status_body(ollama):
@@ -68,9 +69,15 @@ class ChatResponse(BaseModel):
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, authorization: str | None = Header(default=None)):
     """
     Send a message to the AI trading assistant and get a reply back.
+
+    If the caller sends an Authorization header (the same JWT they use
+    against the Kotlin backend), it's forwarded through so the agent can
+    use the wallet-balance tool and answer real balance questions. Without
+    it, the assistant still answers general trading questions - it just
+    can't look anything up.
 
     Fails with 503 (not a raw 500) if Ollama itself isn't reachable/ready -
     that's a dependency-down condition the client should treat differently
@@ -80,7 +87,7 @@ async def chat(request: ChatRequest):
     if not (ollama_status.reachable and ollama_status.model_available):
         raise HTTPException(status_code=503, detail=f"AI model unavailable: {ollama_status.detail}")
 
-    reply = await get_chat_response(request.message)
+    reply = await get_chat_response(request.message, auth_token=authorization)
     return ChatResponse(reply=reply)
 
 
