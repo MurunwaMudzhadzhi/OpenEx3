@@ -7,7 +7,12 @@ system prompt (see app/agent.py).
 Day 3: /chat now forwards the caller's Authorization header through, so
 the agent can use the wallet-balance tool (also in app/agent.py) to answer
 real balance questions via the Kotlin backend's GET /accounts endpoint.
+
+CodeRabbit fix: get_chat_response() errors are now caught and mapped to
+503 (Ollama unreachable/transport error) or 504 (timeout) instead of
+surfacing as a raw 500.
 """
+import httpx
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -16,7 +21,7 @@ from app.agent import get_chat_response
 from app.config import settings
 from app.ollama_status import check_ollama
 
-app = FastAPI(title="OpenEx AI Agent", version="0.3.0")
+app = FastAPI(title="OpenEx AI Agent", version="0.3.1")
 
 
 def _status_body(ollama):
@@ -79,15 +84,22 @@ async def chat(request: ChatRequest, authorization: str | None = Header(default=
     it, the assistant still answers general trading questions - it just
     can't look anything up.
 
-    Fails with 503 (not a raw 500) if Ollama itself isn't reachable/ready -
-    that's a dependency-down condition the client should treat differently
-    from a genuine server error.
+    Fails with 503 if Ollama itself isn't reachable/ready, 503 if a chat
+    call transport-fails mid-request, and 504 if it times out - each a
+    dependency-down condition the client should treat differently from a
+    genuine server error (which still propagates as 500).
     """
     ollama_status = await check_ollama()
     if not (ollama_status.reachable and ollama_status.model_available):
         raise HTTPException(status_code=503, detail=f"AI model unavailable: {ollama_status.detail}")
 
-    reply = await get_chat_response(request.message, auth_token=authorization)
+    try:
+        reply = await get_chat_response(request.message, auth_token=authorization)
+    except httpx.TimeoutException as exc:
+        raise HTTPException(status_code=504, detail=f"AI model timed out: {exc}") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail=f"AI model unavailable: {exc}") from exc
+
     return ChatResponse(reply=reply)
 
 
