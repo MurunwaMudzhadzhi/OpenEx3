@@ -1,4 +1,4 @@
-﻿services:
+services:
   postgres:
     image: postgres:16-alpine
     container_name: openex-postgres
@@ -31,7 +31,7 @@
       DB_USER: openex
       DB_PASSWORD: openex
       SERVER_PORT: 8080
-      # Local-dev-only secret â€” real deployments must override this via a
+      # Local-dev-only secret — real deployments must override this via a
       # proper secret manager / CI variable, never commit a production value.
       JWT_SECRET: local-dev-secret-a8f3c91e0b7d4f2896c1e5a7d3b8f0c2
     ports:
@@ -48,10 +48,9 @@
     volumes:
       - openex_ollama_data:/root/.ollama
     healthcheck:
-      # Checks the daemon itself is responding â€” deliberately NOT checking
-      # that a model is pulled, since that's a separate manual step (see
-      # ai-agent/README.md) and shouldn't block this container from
-      # reporting healthy.
+      # Checks that the Ollama daemon is responding.
+      # The model is pulled separately and does not determine
+      # whether the container itself is healthy.
       test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
@@ -72,13 +71,15 @@
     ports:
       - "8000:8000"
     healthcheck:
-      # /ready (not /health) â€” returns a real failure status until Ollama
-      # is reachable and the model is pulled, so Docker doesn't report this
-      # container healthy prematurely. urlopen raises on the 503 /ready
-      # returns while not ready, which is exactly what we want here: a
-      # non-zero exit from this command until the service is actually
-      # ready to serve requests.
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      # /ready returns failure until Ollama is reachable and the model
+      # is available.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -86,5 +87,3 @@
 volumes:
   openex_pg_data:
   openex_ollama_data:
-
-
