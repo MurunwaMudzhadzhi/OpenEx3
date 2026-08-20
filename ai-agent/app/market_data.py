@@ -62,7 +62,11 @@ def _append_tick() -> pd.DataFrame:
         "timestamp": [datetime.now(timezone.utc)],
         "price": [new_price],
     })
-    _history = pd.concat([_history, new_row], ignore_index=True)
+    _history = (
+        pd.concat([_history, new_row], ignore_index=True)
+        .tail(_SEED_TICKS)
+        .reset_index(drop=True)
+    )
     _history["moving_average"] = _history["price"].rolling(window=_MA_WINDOW, min_periods=1).mean()
     return _history
 
