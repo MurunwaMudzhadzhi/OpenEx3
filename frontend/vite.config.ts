@@ -1,6 +1,5 @@
-import { defineConfig } from "vite";
+﻿import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-
 export default defineConfig({
   plugins: [react()],
   define: {
@@ -11,14 +10,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // WebSocket + SockJS handshake — proxied so the browser sees
+      // WebSocket + SockJS handshake - proxied so the browser sees
       // everything as same-origin during local dev.
       "/ws": {
         target: "http://localhost:8080",
         ws: true,
         changeOrigin: true,
       },
-      // REST order API — used starting Day 4, proxied here now so the
+      // REST order API - used starting Day 4, proxied here now so the
       // config doesn't need to change later.
       "/orders": {
         target: "http://localhost:8080",
@@ -29,6 +28,22 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
       },
+      // Account balances (BalancesPanel)
+      "/accounts": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      // Day 14: Python ai-agent service - market data feed (Day 11
+      // catch-up) and the AI chat assistant (Day 12/13).
+      "/api": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/chat": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
     },
   },
 });
+

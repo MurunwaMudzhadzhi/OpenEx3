@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   connectToOrderBook,
   type OrderBookSnapshot,
@@ -11,7 +11,10 @@ import TradeFeedPanel from "./components/TradeFeedPanel";
 import AuthPanel from "./components/AuthPanel";
 import OrderFormPanel from "./components/OrderFormPanel";
 import BalancesPanel from "./components/BalancesPanel";
+import DepositPanel from "./components/DepositPanel";
 import OpenOrdersPanel from "./components/OpenOrdersPanel";
+import PriceChartPanel from "./components/PriceChartPanel";
+import ChatPanel from "./components/ChatPanel";
 
 const SYMBOL = "BTC-USD";
 const MAX_LOG_ENTRIES = 20;
@@ -74,8 +77,12 @@ export default function App() {
           onSubmitted={() => setRefreshSignal((n) => n + 1)}
         />
         <BalancesPanel token={session.token} refreshSignal={refreshSignal} />
+        <DepositPanel token={session.token} onDeposited={() => setRefreshSignal((n) => n + 1)} />
         <OpenOrdersPanel token={session.token} refreshSignal={refreshSignal} />
+        <PriceChartPanel />
       </main>
+      <ChatPanel token={session.token} />
     </div>
   );
 }
+
