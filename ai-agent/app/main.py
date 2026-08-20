@@ -18,10 +18,13 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.agent import get_chat_response
+from app.market_data import router as market_data_router
 from app.config import settings
 from app.ollama_status import check_ollama
 
-app = FastAPI(title="OpenEx AI Agent", version="0.3.1")
+app = FastAPI(title="OpenEx AI Agent", version="0.4.0")
+
+app.include_router(market_data_router)
 
 
 def _status_body(ollama):
@@ -106,3 +109,4 @@ async def chat(request: ChatRequest, authorization: str | None = Header(default=
 @app.get("/")
 async def root():
     return {"service": "OpenEx AI Agent", "docs": "/docs"}
+
