@@ -94,16 +94,19 @@ def _make_wallet_tool(auth_token: str):
 # and call the tool anyway. Deciding tool availability here, in code,
 # instead of trusting the model's judgment, makes the behavior
 # deterministic regardless of model size.
-_BALANCE_KEYWORDS = (
-    "balance", "balances", "funds", "wallet", "portfolio",
-    "how much do i have", "how much btc", "how much usd",
-    "my holdings", "my account",
+_BALANCE_TERMS = (
+    "balance", "balances", "funds", "wallet", "portfolio", "holdings", "account",
 )
+
+_OWNERSHIP_PHRASES = ("my ", "do i have", "i have")
 
 
 def _mentions_own_balance(user_message: str) -> bool:
     lowered = user_message.lower()
-    return any(keyword in lowered for keyword in _BALANCE_KEYWORDS)
+    return (
+        any(term in lowered for term in _BALANCE_TERMS)
+        and any(phrase in lowered for phrase in _OWNERSHIP_PHRASES)
+    )
 
 
 async def get_chat_response(user_message: str, auth_token: str | None = None) -> str:
