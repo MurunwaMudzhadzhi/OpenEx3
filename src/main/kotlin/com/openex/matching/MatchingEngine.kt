@@ -1,4 +1,4 @@
-package com.openex.matching
+﻿package com.openex.matching
 
 import com.openex.ledger.AccountRepository
 import com.openex.ledger.LedgerService
@@ -133,6 +133,8 @@ class MatchingEngine(
                     finalizeStatus(order)
                     orderRepository.save(order)
 
+
+                    eventPublisher.publishEvent(OrderProcessedEvent(symbol = symbol, trades = trades))
                     SubmissionResult(order = order, trades = trades)
                 } ?: error("transactionTemplate.execute returned null")
             } catch (e: Exception) {
@@ -151,8 +153,6 @@ class MatchingEngine(
         // changed either way (a new resting order, a filled counter-order,
         // or both). Safe to fire after the synchronized block: the
         // transaction has already committed by this point.
-        eventPublisher.publishEvent(OrderProcessedEvent(symbol = symbol, trades = result.trades))
-
         return result
     }
 
@@ -221,6 +221,7 @@ class MatchingEngine(
                 quantity = fill.quantity,
             )
 
+            tradeRepository.save(trade)
             ledgerService.recordTrade(
                 tradeId = trade.id,
                 buyerBaseAccountId = buyerBaseAccount.id,
@@ -230,8 +231,6 @@ class MatchingEngine(
                 quantity = fill.quantity,
                 price = fill.price,
             )
-
-            tradeRepository.save(trade)
             trades += trade
 
             incomingOrder.filledQuantity = incomingOrder.filledQuantity.add(fill.quantity)

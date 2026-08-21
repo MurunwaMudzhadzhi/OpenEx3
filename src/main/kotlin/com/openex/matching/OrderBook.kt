@@ -1,4 +1,4 @@
-package com.openex.matching
+﻿package com.openex.matching
 
 import com.openex.order.OrderSide
 import com.openex.order.OrderType
@@ -48,7 +48,7 @@ data class MatchResult(
  * Bids: highest price first, then earliest arrival first.
  * Asks: lowest price first, then earliest arrival first.
  *
- * NOT thread-safe on its own — callers (MatchingEngine) must synchronize
+ * NOT thread-safe on its own â€” callers (MatchingEngine) must synchronize
  * access per symbol, since two orders for the same symbol must never be
  * matched concurrently.
  */
@@ -63,8 +63,8 @@ class OrderBook(val symbol: String) {
     private val asks = sortedMapOf<BigDecimal, ArrayDeque<RestingOrder>>(compareBy { it })
 
     /**
-     * Matches [incoming] against the opposite side of the book, then — if
-     * it's a LIMIT order with quantity left over — rests it in the book.
+     * Matches [incoming] against the opposite side of the book, then â€” if
+     * it's a LIMIT order with quantity left over â€” rests it in the book.
      * MARKET orders never rest: any unfilled remainder is simply dropped
      * (caller should mark the order PARTIALLY_FILLED/CANCELLED accordingly).
      */
@@ -109,7 +109,7 @@ class OrderBook(val symbol: String) {
             remaining = remaining.subtract(fillQty)
             resting.remaining = resting.remaining.subtract(fillQty)
 
-            if (resting.remaining == BigDecimal.ZERO) {
+            if (resting.remaining.signum() == 0) {
                 queue.removeFirst()
                 if (queue.isEmpty()) counterBook.remove(bestPrice)
             }
@@ -135,7 +135,7 @@ class OrderBook(val symbol: String) {
     /**
      * Directly places an order into the book as resting, with no matching
      * attempted. Used only to rebuild a book from persisted DB state (e.g.
-     * after a crash, restart, or a mid-match rollback) — NOT part of normal
+     * after a crash, restart, or a mid-match rollback) â€” NOT part of normal
      * order submission, which always goes through [submit].
      */
     fun seedResting(orderId: UUID, userId: UUID, side: OrderSide, price: BigDecimal, remaining: BigDecimal) {
@@ -171,7 +171,7 @@ class OrderBook(val symbol: String) {
     /**
      * Aggregated bid levels (price -> total resting quantity at that price),
      * best price first, limited to [depth] levels. Used for broadcasting a
-     * book snapshot — callers outside this class never see individual
+     * book snapshot â€” callers outside this class never see individual
      * resting orders, only price/quantity aggregates.
      */
     fun bidLevels(depth: Int = 20): List<PriceLevel> = aggregate(bids, depth)
@@ -185,5 +185,5 @@ class OrderBook(val symbol: String) {
         }
 }
 
-/** One aggregated price level in the book — total quantity resting at that price. */
+/** One aggregated price level in the book â€” total quantity resting at that price. */
 data class PriceLevel(val price: BigDecimal, val quantity: BigDecimal)
