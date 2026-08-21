@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 
 interface HeaderProps {
   symbol: string;
@@ -28,7 +28,7 @@ export default function Header({ symbol, connected, email, onLogout }: HeaderPro
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
         <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "0.04em", color: "var(--phosphor)" }}>
-          OPENEX // 3.0
+          DARKPOOL // 3.0
         </span>
         <span className="eyebrow">DECENTRALIZED TRADING TERMINAL</span>
       </div>

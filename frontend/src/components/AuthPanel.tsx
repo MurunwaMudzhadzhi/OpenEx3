@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { login, register, type AuthSession } from "../lib/authApi";
 
 interface AuthPanelProps {
@@ -41,7 +41,7 @@ export default function AuthPanel({ onAuthenticated }: AuthPanelProps) {
       <div className="panel" style={{ width: 360, display: "flex", flexDirection: "column", gap: 16 }}>
         <div>
           <span style={{ fontSize: 18, fontWeight: 700, color: "var(--phosphor)", letterSpacing: "0.04em" }}>
-            OPENEX // 3.0
+            DARKPOOL // 3.0
           </span>
           <div className="eyebrow" style={{ marginTop: 4 }}>
             {mode === "login" ? "TERMINAL ACCESS" : "NEW OPERATOR REGISTRATION"}
@@ -101,7 +101,7 @@ export default function AuthPanel({ onAuthenticated }: AuthPanelProps) {
           )}
 
           <button type="submit" disabled={submitting} style={submitStyle}>
-            {submitting ? "TRANSMITTING…" : mode === "login" ? "LOG IN" : "CREATE ACCOUNT"}
+            {submitting ? "TRANSMITTINGâ€¦" : mode === "login" ? "LOG IN" : "CREATE ACCOUNT"}
           </button>
         </form>
       </div>

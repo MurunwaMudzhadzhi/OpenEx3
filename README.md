@@ -1,4 +1,4 @@
-﻿# OpenEx 3.0
+﻿# DarkPool 3.0
 
 A simulated crypto/forex trading terminal: Kotlin/Spring Boot backend
 (matching engine + double-entry ledger), a React/Vite trading UI, and a
