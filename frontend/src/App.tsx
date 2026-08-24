@@ -14,6 +14,7 @@ import BalancesPanel from "./components/BalancesPanel";
 import DepositPanel from "./components/DepositPanel";
 import OpenOrdersPanel from "./components/OpenOrdersPanel";
 import PriceChartPanel from "./components/PriceChartPanel";
+import RealPriceChartPanel from "./components/RealPriceChartPanel";
 import ChatPanel from "./components/ChatPanel";
 
 const SYMBOL = "BTC-USD";
@@ -79,10 +80,12 @@ export default function App() {
         <BalancesPanel token={session.token} refreshSignal={refreshSignal} />
         <DepositPanel token={session.token} onDeposited={() => setRefreshSignal((n) => n + 1)} />
         <OpenOrdersPanel token={session.token} refreshSignal={refreshSignal} />
-        <PriceChartPanel />
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 2, minWidth: 420 }}>
+          <RealPriceChartPanel />
+          <PriceChartPanel />
+        </div>
       </main>
       <ChatPanel token={session.token} />
     </div>
   );
 }
-
