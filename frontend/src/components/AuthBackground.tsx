@@ -6,6 +6,8 @@
  * positioned behind the login panel; the panel itself just needs
  * position: relative + a higher z-index from its parent.
  */
+const PIXEL_RATIO = Math.min(window.devicePixelRatio || 1, 2);
+
 export default function AuthBackground() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -20,21 +22,21 @@ export default function AuthBackground() {
     let animationFrame: number;
 
     function resize() {
-      width = canvas!.width = canvas!.offsetWidth * devicePixelRatio;
-      height = canvas!.height = canvas!.offsetHeight * devicePixelRatio;
+      width = canvas!.width = canvas!.offsetWidth * PIXEL_RATIO;
+      height = canvas!.height = canvas!.offsetHeight * PIXEL_RATIO;
     }
     resize();
     window.addEventListener("resize", resize);
 
     const PARTICLE_COUNT = 55;
-    const LINK_DISTANCE = 130 * devicePixelRatio;
+    const LINK_DISTANCE = 130 * PIXEL_RATIO;
 
     type Particle = { x: number; y: number; vx: number; vy: number };
     const particles: Particle[] = Array.from({ length: PARTICLE_COUNT }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.25 * devicePixelRatio,
-      vy: (Math.random() - 0.5) * 0.25 * devicePixelRatio,
+      vx: (Math.random() - 0.5) * 0.25 * PIXEL_RATIO,
+      vy: (Math.random() - 0.5) * 0.25 * PIXEL_RATIO,
     }));
 
     function tick() {
@@ -43,7 +45,7 @@ export default function AuthBackground() {
       // faint background grid
       ctx!.strokeStyle = "rgba(57, 255, 136, 0.035)";
       ctx!.lineWidth = 1;
-      const gridSize = 42 * devicePixelRatio;
+      const gridSize = 42 * PIXEL_RATIO;
       for (let x = 0; x < width; x += gridSize) {
         ctx!.beginPath();
         ctx!.moveTo(x, 0);
@@ -66,7 +68,7 @@ export default function AuthBackground() {
 
         ctx!.fillStyle = "rgba(57, 255, 136, 0.55)";
         ctx!.beginPath();
-        ctx!.arc(particle.x, particle.y, 1.4 * devicePixelRatio, 0, Math.PI * 2);
+        ctx!.arc(particle.x, particle.y, 1.4 * PIXEL_RATIO, 0, Math.PI * 2);
         ctx!.fill();
       }
 

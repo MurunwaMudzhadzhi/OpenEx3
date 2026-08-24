@@ -5,6 +5,8 @@
  * the particle grid. Fetched once on mount  this is decorative, not
  * live-polled, so it doesn't add to the auth screen's network chatter.
  */
+const PIXEL_RATIO = Math.min(window.devicePixelRatio || 1, 2);
+
 export default function AuthPriceBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -18,8 +20,8 @@ export default function AuthPriceBackdrop() {
 
     function draw(prices: number[]) {
       if (!canvas || !ctx) return;
-      const width = (canvas.width = canvas.offsetWidth * devicePixelRatio);
-      const height = (canvas.height = canvas.offsetHeight * devicePixelRatio);
+      const width = (canvas.width = canvas.offsetWidth * PIXEL_RATIO);
+      const height = (canvas.height = canvas.offsetHeight * PIXEL_RATIO);
 
       const min = Math.min(...prices);
       const max = Math.max(...prices);
@@ -36,9 +38,9 @@ export default function AuthPriceBackdrop() {
       });
 
       ctx.strokeStyle = "rgba(224, 163, 64, 0.16)";
-      ctx.lineWidth = 2 * devicePixelRatio;
+      ctx.lineWidth = 2 * PIXEL_RATIO;
       ctx.shadowColor = "rgba(224, 163, 64, 0.35)";
-      ctx.shadowBlur = 18 * devicePixelRatio;
+      ctx.shadowBlur = 18 * PIXEL_RATIO;
       ctx.stroke();
 
       // soft fill under the line

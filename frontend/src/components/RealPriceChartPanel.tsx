@@ -74,9 +74,11 @@ export default function RealPriceChartPanel() {
         });
     }
 
+    const initialDelay = setTimeout(poll, 5000); // offset from AuthPriceCard's immediate poll
     const interval = setInterval(poll, POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
+      clearTimeout(initialDelay);
       clearInterval(interval);
     };
   }, []);
